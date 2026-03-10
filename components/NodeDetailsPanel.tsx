@@ -123,7 +123,6 @@ export function NodeDetailsPanel({ detail, open, onClose }: Props) {
           <dl style={{ margin: 0 }}>
             {[
               { label: "Database", value: detail.databaseName },
-              { label: "Created by", value: detail.createdBy },
               { label: "Date", value: createdDate },
               { label: "Time", value: createdTime },
             ].map(({ label, value }) => (

@@ -226,6 +226,17 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId }: Props) {
       .catch(() => onSelectNode(null));
   }, [localSelectedId, onSelectNode]);
 
+  // ── Neighbors of selected node ──
+  const selectedNeighbors = useMemo(() => {
+    if (!localSelectedId) return new Set<string>();
+    const neighbors = new Set<string>();
+    for (const edge of graph.edges) {
+      if (edge.source === localSelectedId) neighbors.add(edge.target);
+      if (edge.target === localSelectedId) neighbors.add(edge.source);
+    }
+    return neighbors;
+  }, [localSelectedId, graph.edges]);
+
   // ── Connection degree per node ──
   const degreeMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -402,7 +413,8 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId }: Props) {
         {projected.map((node) => {
           const isSelected = node.id === localSelectedId;
           const isHovered  = node.id === hoveredId;
-          const isDimmed   = localSelectedId !== null && !isSelected;
+          const isNeighbor = selectedNeighbors.has(node.id);
+          const isDimmed   = localSelectedId !== null && !isSelected && !isNeighbor;
 
           const degree = degreeMap.get(node.id) ?? 0;
           const degreeScale = lerp(0.6, 2.2, degree / maxDegree);

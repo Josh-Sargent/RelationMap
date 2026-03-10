@@ -61,11 +61,19 @@ export function GraphScreen({ initialGraph, databaseColors, lastSyncAt, warnings
     month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
   }) : "Never";
 
-  // Build a name→id lookup so the toggle panel can show database names
+  // Build id→name and id→color lookups from the graph nodes
   const dbIdToName = useMemo(() => {
     const map: Record<string, string> = {};
     for (const node of initialGraph.nodes) {
       if (!map[node.databaseId]) map[node.databaseId] = node.databaseName;
+    }
+    return map;
+  }, [initialGraph.nodes]);
+
+  const dbIdToColor = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const node of initialGraph.nodes) {
+      if (!map[node.databaseId]) map[node.databaseId] = node.color;
     }
     return map;
   }, [initialGraph.nodes]);
@@ -268,7 +276,7 @@ export function GraphScreen({ initialGraph, databaseColors, lastSyncAt, warnings
       <DatabaseTogglePanel
         allDatabaseIds={allDatabaseIds}
         dbIdToName={dbIdToName}
-        databaseColors={databaseColors}
+        databaseColors={dbIdToColor}
         enabledDbs={enabledDbs}
         onToggle={toggleDb}
       />

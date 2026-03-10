@@ -70,7 +70,7 @@ export function DatabaseTogglePanel({
         {allDatabaseIds.map((id) => {
           const enabled = enabledDbs.has(id);
           const name = dbIdToName[id] ?? id;
-          const color = databaseColors[name] ?? databaseColors[id] ?? "#888";
+          const color = databaseColors[id] ?? "#888";
 
           return (
             <button
