@@ -226,6 +226,18 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId }: Props) {
       .catch(() => onSelectNode(null));
   }, [localSelectedId, onSelectNode]);
 
+  // ── Connection degree per node ──
+  const degreeMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const edge of graph.edges) {
+      map.set(edge.source, (map.get(edge.source) ?? 0) + 1);
+      map.set(edge.target, (map.get(edge.target) ?? 0) + 1);
+    }
+    return map;
+  }, [graph.edges]);
+
+  const maxDegree = useMemo(() => Math.max(1, ...degreeMap.values()), [degreeMap]);
+
   // ── Project all nodes ──
   const { projected, projectedMap } = useMemo(() => {
     const cx = size.w / 2;
@@ -392,7 +404,9 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId }: Props) {
           const isHovered  = node.id === hoveredId;
           const isDimmed   = localSelectedId !== null && !isSelected;
 
-          const baseR  = isSelected ? NODE_RADIUS_SELECTED : NODE_RADIUS;
+          const degree = degreeMap.get(node.id) ?? 0;
+          const degreeScale = lerp(0.6, 2.2, degree / maxDegree);
+          const baseR  = (isSelected ? NODE_RADIUS_SELECTED : NODE_RADIUS) * degreeScale;
           const r      = baseR * lerp(DEPTH_MIN_RADIUS, 1.0, node.depth);
           const opacityBase = lerp(DEPTH_MIN_OPACITY, 1.0, node.depth);
           const opacity = isDimmed ? opacityBase * 0.2 : opacityBase;
