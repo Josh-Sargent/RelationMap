@@ -286,6 +286,10 @@ export function GraphScreen({ initialGraph, databaseColors, lastSyncAt, warnings
         detail={selectedDetail}
         open={panelOpen}
         onClose={handleClose}
+        onSelectNode={handleSelectNode}
+        allNodes={initialGraph.nodes}
+        allEdges={initialGraph.edges}
+        enabledDbs={enabledDbs}
       />
     </div>
   );

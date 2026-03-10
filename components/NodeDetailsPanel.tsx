@@ -1,12 +1,27 @@
-import type { NodeDetail } from "@/lib/types";
+import { useState, useEffect } from "react";
+import type { GraphEdge, GraphNode, NodeDetail } from "@/lib/types";
 
 type Props = {
   detail: NodeDetail | null;
   open: boolean;
   onClose: () => void;
+  onSelectNode?: (detail: NodeDetail) => void;
+  allNodes?: GraphNode[];
+  allEdges?: GraphEdge[];
+  enabledDbs?: Set<string>;
 };
 
-export function NodeDetailsPanel({ detail, open, onClose }: Props) {
+export function NodeDetailsPanel({ detail, open, onClose, onSelectNode, allNodes = [], allEdges = [], enabledDbs }: Props) {
+  const [expandedDb, setExpandedDb] = useState<string | null>(null);
+
+  useEffect(() => {
+    setExpandedDb(null);
+  }, [detail?.id]);
+
+  function toggleDb(dbName: string) {
+    setExpandedDb((prev) => (prev === dbName ? null : dbName));
+  }
+
   const createdDate = detail
     ? new Date(detail.createdTime).toLocaleDateString(undefined, {
         weekday: "short",
@@ -22,6 +37,32 @@ export function NodeDetailsPanel({ detail, open, onClose }: Props) {
         minute: "2-digit",
       })
     : null;
+
+  // Build node lookup
+  const nodeMap = new Map(allNodes.map((n) => [n.id, n]));
+
+  // Find all edges connected to this node where both endpoints are in enabled dbs
+  const connectedNodes: { node: GraphNode; relationName: string }[] = [];
+  if (detail) {
+    for (const edge of allEdges) {
+      let neighborId: string | null = null;
+      if (edge.source === detail.id) neighborId = edge.target;
+      else if (edge.target === detail.id) neighborId = edge.source;
+      if (!neighborId) continue;
+      const neighbor = nodeMap.get(neighborId);
+      if (!neighbor) continue;
+      if (enabledDbs && !enabledDbs.has(neighbor.databaseId)) continue;
+      connectedNodes.push({ node: neighbor, relationName: edge.relationName });
+    }
+  }
+
+  // Group by databaseName
+  const connectionsByDb = new Map<string, { node: GraphNode; relationName: string }[]>();
+  for (const conn of connectedNodes) {
+    const key = conn.node.databaseName;
+    if (!connectionsByDb.has(key)) connectionsByDb.set(key, []);
+    connectionsByDb.get(key)!.push(conn);
+  }
 
   return (
     <aside
@@ -118,46 +159,223 @@ export function NodeDetailsPanel({ detail, open, onClose }: Props) {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
         {detail ? (
-          <dl style={{ margin: 0 }}>
-            {[
-              { label: "Database", value: detail.databaseName },
-              { label: "Date", value: createdDate },
-              { label: "Time", value: createdTime },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                style={{
-                  marginBottom: 18,
-                  paddingBottom: 18,
-                  borderBottom: "1px solid var(--border-subtle)",
-                }}
-              >
-                <dt style={{
-                  fontFamily: "'DM Mono', monospace",
-                  fontSize: 10,
-                  fontWeight: 500,
-                  color: "var(--text-faint)",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  marginBottom: 4,
-                }}>
-                  {label}
-                </dt>
-                <dd style={{
-                  margin: 0,
-                  fontFamily: "'Geist', sans-serif",
-                  fontSize: 14,
-                  fontWeight: 400,
-                  color: "var(--text-primary)",
-                  lineHeight: 1.5,
-                }}>
-                  {value ?? "—"}
-                </dd>
+          <>
+            <dl style={{ margin: 0 }}>
+              {[
+                { label: "Database", value: detail.databaseName },
+                { label: "Date", value: createdDate },
+                { label: "Time", value: createdTime },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  style={{
+                    marginBottom: 12,
+                    paddingBottom: 12,
+                    borderBottom: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  <dt style={{
+                    fontFamily: "'DM Mono', monospace",
+                    fontSize: 10,
+                    fontWeight: 500,
+                    color: "var(--text-faint)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: 3,
+                  }}>
+                    {label}
+                  </dt>
+                  <dd style={{
+                    margin: 0,
+                    fontFamily: "'Geist', sans-serif",
+                    fontSize: 13,
+                    fontWeight: 400,
+                    color: "var(--text-primary)",
+                    lineHeight: 1.5,
+                  }}>
+                    {value ?? "—"}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+
+            {/* Connections section */}
+            <div style={{ marginTop: 4 }}>
+              <div style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 10,
+                fontWeight: 500,
+                color: "var(--text-faint)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: 10,
+              }}>
+                Connections{connectedNodes.length > 0 ? ` · ${connectedNodes.length}` : ""}
               </div>
-            ))}
-          </dl>
+
+              {connectionsByDb.size === 0 ? (
+                <div style={{
+                  fontFamily: "'Geist', sans-serif",
+                  fontSize: 12,
+                  color: "var(--text-faint)",
+                  fontStyle: "italic",
+                }}>
+                  No visible connections
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {Array.from(connectionsByDb.entries()).map(([dbName, conns]) => {
+                    const color = conns[0].node.color;
+                    const isExpanded = expandedDb === dbName;
+                    return (
+                      <div key={dbName}>
+                        {/* Accordion header — clickable db row */}
+                        <button
+                          type="button"
+                          onClick={() => toggleDb(dbName)}
+                          style={{
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 7,
+                            padding: "6px 8px",
+                            borderRadius: isExpanded ? "7px 7px 0 0" : 7,
+                            background: isExpanded ? "var(--bg-overlay)" : "transparent",
+                            border: isExpanded ? "1px solid var(--border-subtle)" : "1px solid transparent",
+                            borderBottom: isExpanded ? "none" : undefined,
+                            cursor: "pointer",
+                            textAlign: "left",
+                            transition: "background 0.12s",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isExpanded) (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isExpanded) (e.currentTarget as HTMLElement).style.background = "transparent";
+                          }}
+                        >
+                          <span style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: color,
+                            flexShrink: 0,
+                            display: "inline-block",
+                          }} />
+                          <span style={{
+                            flex: 1,
+                            fontFamily: "'DM Mono', monospace",
+                            fontSize: 10,
+                            fontWeight: 500,
+                            color: "var(--text-muted)",
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                          }}>
+                            {dbName}
+                          </span>
+                          <span style={{
+                            fontFamily: "'DM Mono', monospace",
+                            fontSize: 9,
+                            color: "var(--text-faint)",
+                            marginRight: 2,
+                          }}>
+                            {conns.length}
+                          </span>
+                          <svg
+                            width="10" height="10" viewBox="0 0 10 10" fill="none"
+                            style={{
+                              flexShrink: 0,
+                              color: "var(--text-faint)",
+                              transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                              transition: "transform 0.15s",
+                            }}
+                          >
+                            <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </button>
+
+                        {/* Expanded connection rows */}
+                        {isExpanded && (
+                          <div style={{
+                            border: "1px solid var(--border-subtle)",
+                            borderTop: "none",
+                            borderRadius: "0 0 7px 7px",
+                            overflow: "hidden",
+                            marginBottom: 2,
+                          }}>
+                            {conns.map(({ node, relationName }, i) => (
+                              <button
+                                key={node.id}
+                                type="button"
+                                onClick={() => onSelectNode?.({
+                                  id: node.id,
+                                  name: node.name,
+                                  createdBy: node.createdBy,
+                                  createdTime: node.createdTime,
+                                  databaseName: node.databaseName,
+                                  notionUrl: node.notionUrl,
+                                })}
+                                style={{
+                                  width: "100%",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  padding: "6px 8px",
+                                  background: "var(--bg-overlay)",
+                                  border: "none",
+                                  borderTop: i > 0 ? "1px solid var(--border-subtle)" : "none",
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                  transition: "background 0.1s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  (e.currentTarget as HTMLElement).style.background = "var(--bg-surface)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
+                                }}
+                              >
+                                <span style={{
+                                  flex: 1,
+                                  fontFamily: "'Geist', sans-serif",
+                                  fontSize: 12,
+                                  color: "var(--text-primary)",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}>
+                                  {node.name}
+                                </span>
+                                <span style={{
+                                  flexShrink: 0,
+                                  fontFamily: "'DM Mono', monospace",
+                                  fontSize: 9,
+                                  color: "var(--text-faint)",
+                                  background: "var(--bg-surface)",
+                                  border: "1px solid var(--border-subtle)",
+                                  borderRadius: 4,
+                                  padding: "1px 5px",
+                                  letterSpacing: "0.04em",
+                                  maxWidth: 90,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}>
+                                  {relationName}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div style={{ color: "var(--text-faint)", fontSize: 13, fontFamily: "'Geist', sans-serif", textAlign: "center", marginTop: 40 }}>
             Select a node to view details
