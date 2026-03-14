@@ -42,8 +42,9 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
   // Deep highlight mode — shows full connection web with opacity decay
   const [deepHighlight, setDeepHighlight] = useState(false);
 
-  // Center text visibility toggle
+  // Center text visibility + opacity
   const [showCenterText, setShowCenterText] = useState(true);
+  const [centerTextOpacity, setCenterTextOpacity] = useState(0.25);
 
   // Dark mode — persisted in localStorage
   const [darkMode, setDarkMode] = useState<boolean>(false);
@@ -113,7 +114,6 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
 
   const handleSelectNode = useCallback((detail: NodeDetail | null) => {
     setSelectedDetail(detail);
-    setPanelOpen(detail !== null);
   }, []);
 
   const handleClose = useCallback(() => {
@@ -150,6 +150,7 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         onSelectNode={handleSelectNode}
         selectedNodeId={selectedDetail?.id ?? null}
         sphereCenterText={showCenterText ? sphereCenterText : null}
+        centerTextOpacity={centerTextOpacity}
         shape={shape}
         deepHighlight={deepHighlight}
         panelOpen={panelOpen}
@@ -212,47 +213,6 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         }}
         className="animate-fade-up"
       >
-        {/* Center text toggle */}
-        <button
-          type="button"
-          onClick={() => setShowCenterText((v) => !v)}
-          title={showCenterText ? "Hide center text" : "Show center text"}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            border: "1px solid var(--border-default)",
-            background: showCenterText ? "var(--bg-overlay)" : "var(--panel-bg)",
-            backdropFilter: "blur(12px)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-            color: showCenterText ? "var(--text-primary)" : "var(--text-muted)",
-            transition: "background 0.15s, color 0.15s, border-color 0.15s",
-            boxShadow: "var(--shadow-sm)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
-            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = showCenterText ? "var(--bg-overlay)" : "var(--panel-bg)";
-            (e.currentTarget as HTMLElement).style.color = showCenterText ? "var(--text-primary)" : "var(--text-muted)";
-          }}
-        >
-          ¶
-        </button>
-
-        {/* Settings panel */}
-        <SettingsPanel
-          shape={shape}
-          onShapeChange={setShape}
-          deepHighlight={deepHighlight}
-          onDeepHighlightChange={setDeepHighlight}
-        />
-
         {/* Dark mode toggle */}
         <button
           type="button"
@@ -330,7 +290,7 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         </span>
       </div>
 
-      {/* Floating controls hint */}
+      {/* Floating controls hint + settings */}
       <div
         style={{
           position: "absolute",
@@ -340,39 +300,58 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
           display: "flex",
           alignItems: "center",
           gap: 10,
+          transition: "right 0.35s cubic-bezier(0.32, 0, 0.15, 1)",
+        }}
+        className="animate-fade-up"
+      >
+        {/* Settings panel trigger */}
+        <SettingsPanel
+          shape={shape}
+          onShapeChange={setShape}
+          deepHighlight={deepHighlight}
+          onDeepHighlightChange={setDeepHighlight}
+          showCenterText={showCenterText}
+          onShowCenterTextChange={setShowCenterText}
+          centerTextOpacity={centerTextOpacity}
+          onCenterTextOpacityChange={setCenterTextOpacity}
+        />
+
+        {/* Controls hint bar */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
           background: "var(--panel-bg)",
           backdropFilter: "blur(12px)",
           border: "1px solid var(--border-default)",
           borderRadius: 10,
           padding: "6px 14px",
           boxShadow: "var(--shadow-sm)",
-          transition: "right 0.35s cubic-bezier(0.32, 0, 0.15, 1)",
-        }}
-        className="animate-fade-up"
-      >
-        {[
-          ["scroll", "zoom"],
-          ["drag", "rotate"],
-          ["click", "select"],
-        ].map(([key, action]) => (
-          <span key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{
-              fontFamily: "'DM Mono', monospace",
-              fontSize: 10,
-              color: "var(--text-primary)",
-              background: "var(--bg-overlay)",
-              border: "1px solid var(--border-default)",
-              borderRadius: 4,
-              padding: "1px 6px",
-              fontWeight: 500,
-            }}>{key}</span>
-            <span style={{
-              fontFamily: "'Geist', sans-serif",
-              fontSize: 11,
-              color: "var(--text-faint)",
-            }}>{action}</span>
-          </span>
-        ))}
+        }}>
+          {[
+            ["scroll", "zoom"],
+            ["drag", "rotate"],
+            ["click", "select"],
+          ].map(([key, action]) => (
+            <span key={key} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{
+                fontFamily: "'DM Mono', monospace",
+                fontSize: 10,
+                color: "var(--text-primary)",
+                background: "var(--bg-overlay)",
+                border: "1px solid var(--border-default)",
+                borderRadius: 4,
+                padding: "1px 6px",
+                fontWeight: 500,
+              }}>{key}</span>
+              <span style={{
+                fontFamily: "'Geist', sans-serif",
+                fontSize: 11,
+                color: "var(--text-faint)",
+              }}>{action}</span>
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Warnings toast — dismissible */}
@@ -460,6 +439,62 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         schemas={schemas}
         fieldConfig={fieldConfig}
       />
+
+      {/* Panel toggle tab — always visible on right-center edge */}
+      <button
+        type="button"
+        onClick={() => setPanelOpen((v) => !v)}
+        title={panelOpen ? "Collapse panel" : "Expand panel"}
+        style={{
+          position: "absolute",
+          top: "50%",
+          right: panelOpen ? 320 : 0,
+          transform: "translateY(-50%)",
+          zIndex: 50,
+          width: 20,
+          height: 56,
+          background: "var(--panel-bg)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid var(--panel-border)",
+          borderRight: "none",
+          borderRadius: "6px 0 0 6px",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "var(--shadow-panel)",
+          transition: "right 0.35s cubic-bezier(0.32, 0, 0.15, 1), background 0.15s",
+          padding: 0,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)";
+        }}
+      >
+        <svg
+          width="10"
+          height="16"
+          viewBox="0 0 10 16"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ flexShrink: 0 }}
+        >
+          <polyline
+            points={panelOpen ? "3,2 8,8 3,14" : "7,2 2,8 7,14"}
+            stroke={
+              !panelOpen && selectedDetail !== null
+                ? "#f97316"
+                : "var(--text-muted)"
+            }
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ transition: "stroke 0.2s" }}
+          />
+        </svg>
+      </button>
     </div>
   );
 }

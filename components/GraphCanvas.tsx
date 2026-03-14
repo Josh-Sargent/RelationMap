@@ -39,6 +39,7 @@ type Props = {
   deepHighlight?: boolean;
   panelOpen?: boolean;
   sphereCenterText?: string | null;
+  centerTextOpacity?: number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -448,7 +449,7 @@ function lerp(a: number, b: number, t: number) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphere", deepHighlight = false, panelOpen = false, sphereCenterText }: Props) {
+export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphere", deepHighlight = false, panelOpen = false, sphereCenterText, centerTextOpacity = 0.25 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef       = useRef<SVGSVGElement>(null);
 
@@ -822,7 +823,7 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
                   color: "var(--text-primary)",
                   lineHeight: 1.5,
                   textAlign: "center",
-                  opacity: 0.25,
+                  opacity: centerTextOpacity,
                   textShadow: "0 1px 12px var(--bg-base), 0 0 24px var(--bg-base)",
                   padding: "0 8px",
                   display: "-webkit-box",

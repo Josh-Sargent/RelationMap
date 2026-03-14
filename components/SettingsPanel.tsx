@@ -8,6 +8,10 @@ type Props = {
   onShapeChange: (s: ShapeLayout) => void;
   deepHighlight: boolean;
   onDeepHighlightChange: (v: boolean) => void;
+  showCenterText: boolean;
+  onShowCenterTextChange: (v: boolean) => void;
+  centerTextOpacity: number;
+  onCenterTextOpacityChange: (v: number) => void;
 };
 
 type NotionSettings = {
@@ -21,7 +25,7 @@ const SHAPES: Array<{ id: ShapeLayout; label: string; description: string }> = [
   { id: "horse", label: "Horse", description: "Nodes follow the skeletal silhouette of a horse." },
 ];
 
-export function SettingsPanel({ shape, onShapeChange, deepHighlight, onDeepHighlightChange }: Props) {
+export function SettingsPanel({ shape, onShapeChange, deepHighlight, onDeepHighlightChange, showCenterText, onShowCenterTextChange, centerTextOpacity, onCenterTextOpacityChange }: Props) {
   const [open, setOpen] = useState(false);
 
   // Notion settings state
@@ -149,7 +153,7 @@ export function SettingsPanel({ shape, onShapeChange, deepHighlight, onDeepHighl
           ref={panelRef}
           style={{
             position: "fixed",
-            top: 56,
+            bottom: 56,
             right: 24,
             zIndex: 50,
             width: 320,
@@ -205,6 +209,30 @@ export function SettingsPanel({ shape, onShapeChange, deepHighlight, onDeepHighl
                 checked={deepHighlight}
                 onChange={(v) => onDeepHighlightChange(v)}
               />
+              <ToggleRow
+                label="Center Text"
+                description="Show selected node text in the center of the sphere."
+                checked={showCenterText}
+                onChange={(v) => onShowCenterTextChange(v)}
+              />
+              <div style={{ marginTop: 10, padding: "8px 10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <p style={{ margin: 0, fontFamily: "'Geist', sans-serif", fontSize: 12, fontWeight: 500, color: "var(--text-primary)" }}>
+                    Center Text Opacity
+                  </p>
+                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: "var(--text-faint)" }}>
+                    {Math.round(centerTextOpacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(centerTextOpacity * 100)}
+                  onChange={(e) => onCenterTextOpacityChange(Number(e.target.value) / 100)}
+                  style={{ width: "100%", accentColor: "var(--accent-warm)", cursor: "pointer" }}
+                />
+              </div>
             </Section>
 
             <Divider />
