@@ -35,6 +35,7 @@ type Props = {
   graph: GraphData;
   onSelectNode: (detail: NodeDetail | null) => void;
   selectedNodeId: string | null;
+  selectedDetail?: NodeDetail | null;
   shape?: ShapeLayout;
   deepHighlight?: boolean;
   panelOpen?: boolean;
@@ -447,7 +448,7 @@ function lerp(a: number, b: number, t: number) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphere", deepHighlight = false, panelOpen = false }: Props) {
+export function GraphCanvas({ graph, onSelectNode, selectedNodeId, selectedDetail, shape = "sphere", deepHighlight = false, panelOpen = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef       = useRef<SVGSVGElement>(null);
 
@@ -940,6 +941,53 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
         })}
 
         </g>{/* end sphere content */}
+
+        {/* Center description overlay — shown when selected node has a description */}
+        {selectedDetail?.description && localSelectedId && (() => {
+          const sphereR = Math.min(size.w, size.h) * SPHERE_FILL_RATIO * zoom;
+          const maxW = sphereR * 1.1;
+          return (
+            <foreignObject
+              x={size.w / 2 - maxW / 2}
+              y={size.h / 2 - sphereR * 0.55}
+              width={maxW}
+              height={sphereR * 1.1}
+              style={{ pointerEvents: "none" }}
+            >
+              <div
+                // @ts-expect-error xmlns required for foreignObject
+                xmlns="http://www.w3.org/1999/xhtml"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                <p style={{
+                  margin: 0,
+                  fontFamily: "'Lora', Georgia, serif",
+                  fontSize: Math.max(13, Math.min(26, sphereR * 0.085)),
+                  fontWeight: 500,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.5,
+                  textAlign: "center",
+                  opacity: 0.88,
+                  textShadow: "0 1px 12px var(--bg-base), 0 0 24px var(--bg-base)",
+                  padding: "0 8px",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 6,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}>
+                  {selectedDetail.description}
+                </p>
+              </div>
+            </foreignObject>
+          );
+        })()}
       </svg>
 
       {/* Zoom buttons */}

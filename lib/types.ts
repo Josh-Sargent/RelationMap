@@ -32,6 +32,7 @@ export type NodeDetail = {
   createdTime: string;
   databaseName: string;
   notionUrl: string;
+  description?: string;
 };
 
 export type AppConfig = {

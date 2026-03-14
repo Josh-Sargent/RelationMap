@@ -104,6 +104,7 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         graph={filteredGraph}
         onSelectNode={handleSelectNode}
         selectedNodeId={selectedDetail?.id ?? null}
+        selectedDetail={selectedDetail}
         shape={shape}
         deepHighlight={deepHighlight}
         panelOpen={panelOpen}

@@ -245,6 +245,33 @@ export function NodeDetailsPanel({ detail, open, onClose, onSelectNode, allNodes
               ))}
             </dl>
 
+            {/* Description section */}
+            {detail.description && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{
+                  fontFamily: "'DM Mono', monospace",
+                  fontSize: 10,
+                  fontWeight: 500,
+                  color: "var(--text-faint)",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}>
+                  Description
+                </div>
+                <p style={{
+                  margin: 0,
+                  fontFamily: "'Lora', Georgia, serif",
+                  fontSize: 13,
+                  fontWeight: 400,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.65,
+                }}>
+                  {detail.description}
+                </p>
+              </div>
+            )}
+
             {/* Connections section */}
             <div style={{ marginTop: 4 }}>
               <div style={{

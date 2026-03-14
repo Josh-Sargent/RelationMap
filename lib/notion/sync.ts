@@ -126,6 +126,17 @@ function creatorName(page: NotionPage): string {
   return user.name ?? user.person?.email ?? user.id ?? "Unknown";
 }
 
+function pageDescription(page: NotionPage): string | undefined {
+  const props = page.properties ?? {};
+  for (const [key, prop] of Object.entries(props)) {
+    if (key.toLowerCase() === "description" && prop?.type === "rich_text") {
+      const text = (prop.rich_text ?? []).map((item: any) => item.plain_text ?? "").join("").trim();
+      if (text) return text;
+    }
+  }
+  return undefined;
+}
+
 function buildEdges(page: NotionPage): Array<{ targetId: string; relationName: string }> {
   const edges: Array<{ targetId: string; relationName: string }> = [];
   const props = page.properties ?? {};
@@ -242,6 +253,7 @@ export async function runSync(): Promise<GraphData> {
       };
 
       nodes.push(node);
+      const description = pageDescription(page);
       nodeDetails.push({
         id: node.id,
         name: node.name,
@@ -249,6 +261,7 @@ export async function runSync(): Promise<GraphData> {
         createdTime: node.createdTime,
         databaseName: node.databaseName,
         notionUrl: node.notionUrl,
+        ...(description ? { description } : {}),
       });
 
       for (const rel of buildEdges(page)) {
@@ -302,7 +315,7 @@ async function writeGraphArtifacts(graph: GraphData, details?: NodeDetail[]): Pr
     createdTime: node.createdTime,
     databaseName: node.databaseName,
     notionUrl: node.notionUrl,
-  }));
+  } as NodeDetail));
 
   await Promise.all(
     nodeDetails.map((detail) =>
