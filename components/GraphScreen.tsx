@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { GraphCanvas, type ShapeLayout } from "@/components/GraphCanvas";
 import { DatabaseTogglePanel } from "@/components/DatabaseTogglePanel";
 import { NodeDetailsPanel } from "@/components/NodeDetailsPanel";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import type { GraphData, NodeDetail } from "@/lib/types";
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
   warnings?: string[];
 };
 
-export function GraphScreen({ initialGraph, databaseColors, lastSyncAt, warnings }: Props) {
+export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
   const [selectedDetail, setSelectedDetail] = useState<NodeDetail | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [shape, setShape] = useState<ShapeLayout>("sphere");
@@ -165,76 +166,13 @@ export function GraphScreen({ initialGraph, databaseColors, lastSyncAt, warnings
         }}
         className="animate-fade-up"
       >
-        {/* Shape toggles */}
-        {(["sphere", "seven", "horse"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setShape(s)}
-            title={s === "sphere" ? "Sphere layout" : s === "seven" ? "Seven layout" : "Horse layout"}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              border: `1px solid ${shape === s ? "var(--accent-warm)" : "var(--border-default)"}`,
-              background: shape === s ? "var(--bg-overlay)" : "var(--panel-bg)",
-              backdropFilter: "blur(12px)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: s === "sphere" ? 15 : 13,
-              fontWeight: 600,
-              color: shape === s ? "var(--text-primary)" : "var(--text-muted)",
-              fontFamily: "'DM Mono', monospace",
-              transition: "background 0.15s, color 0.15s, border-color 0.15s",
-              boxShadow: "var(--shadow-sm)",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
-              (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = shape === s ? "var(--bg-overlay)" : "var(--panel-bg)";
-              (e.currentTarget as HTMLElement).style.color = shape === s ? "var(--text-primary)" : "var(--text-muted)";
-            }}
-          >
-            {s === "sphere" ? "○" : s === "seven" ? "7" : "H"}
-          </button>
-        ))}
-
-        {/* Deep highlight toggle */}
-        <button
-          type="button"
-          onClick={() => setDeepHighlight((d) => !d)}
-          title={deepHighlight ? "Deep highlight: on — shows full connection web" : "Deep highlight: off — shows only direct connections"}
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
-            border: `1px solid ${deepHighlight ? "var(--accent-warm)" : "var(--border-default)"}`,
-            background: deepHighlight ? "var(--bg-overlay)" : "var(--panel-bg)",
-            backdropFilter: "blur(12px)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 13,
-            color: deepHighlight ? "var(--text-primary)" : "var(--text-muted)",
-            transition: "background 0.15s, color 0.15s, border-color 0.15s",
-            boxShadow: "var(--shadow-sm)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
-            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = deepHighlight ? "var(--bg-overlay)" : "var(--panel-bg)";
-            (e.currentTarget as HTMLElement).style.color = deepHighlight ? "var(--text-primary)" : "var(--text-muted)";
-          }}
-        >
-          ❋
-        </button>
+        {/* Settings panel */}
+        <SettingsPanel
+          shape={shape}
+          onShapeChange={setShape}
+          deepHighlight={deepHighlight}
+          onDeepHighlightChange={setDeepHighlight}
+        />
 
         {/* Dark mode toggle */}
         <button

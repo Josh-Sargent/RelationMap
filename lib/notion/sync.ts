@@ -144,28 +144,51 @@ function buildEdges(page: NotionPage): Array<{ targetId: string; relationName: s
 }
 
 export async function runSync(): Promise<GraphData> {
-  const token = process.env.NOTION_TOKEN ?? "";
-  const root = process.env.NOTION_ROOT_PAGE ?? "";
+  const config = (await readJsonFile<AppConfig>(CONFIG_FILE)) ?? { databaseColors: {} };
 
-  if (!token || !root) {
+  // Prefer token/rootPages from saved config, fall back to env vars
+  const token = (config.notionToken && config.notionToken.trim()) || (process.env.NOTION_TOKEN ?? "");
+  const rootPageEntries: string[] =
+    config.rootPages && config.rootPages.length > 0
+      ? config.rootPages
+      : process.env.NOTION_ROOT_PAGE
+        ? [process.env.NOTION_ROOT_PAGE]
+        : [];
+
+  if (!token || rootPageEntries.length === 0) {
     const warningGraph: GraphData = {
       generatedAt: new Date().toISOString(),
       nodes: [],
       edges: [],
-      warnings: ["Missing NOTION_TOKEN or NOTION_ROOT_PAGE. No real data was synced."],
+      warnings: ["Missing Notion token or root pages. Configure them in Settings."],
     };
     await writeGraphArtifacts(warningGraph);
     return warningGraph;
   }
 
-  const rootPageId = extractPageId(root);
-  const databases = await searchPageForDatabases(rootPageId, token);
+  // Collect databases from all root pages
+  const allDatabases: Array<{ id: string; title: string }> = [];
+  const seenDbIds = new Set<string>();
+  for (const rootEntry of rootPageEntries) {
+    let rootPageId: string;
+    try {
+      rootPageId = extractPageId(rootEntry);
+    } catch {
+      continue;
+    }
+    const dbs = await searchPageForDatabases(rootPageId, token);
+    for (const db of dbs) {
+      if (!seenDbIds.has(db.id)) {
+        seenDbIds.add(db.id);
+        allDatabases.push(db);
+      }
+    }
+  }
+  const databases = allDatabases;
   const warnings: string[] = [];
   if (databases.length === 0) {
     warnings.push("No child databases were found under the configured root page.");
   }
-
-  const config = (await readJsonFile<AppConfig>(CONFIG_FILE)) ?? { databaseColors: {} };
 
   const nodes: GraphNode[] = [];
   const nodeDetails: NodeDetail[] = [];

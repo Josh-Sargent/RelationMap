@@ -37,4 +37,6 @@ export type NodeDetail = {
 export type AppConfig = {
   databaseColors: Record<string, string>;
   lastSyncAt?: string;
+  notionToken?: string;
+  rootPages?: string[];
 };
