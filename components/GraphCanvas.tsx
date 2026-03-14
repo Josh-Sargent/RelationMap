@@ -797,48 +797,69 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
         {/* Sphere content — fades in when first database is selected */}
         <g style={{ opacity: sphereOpacity, transition: "opacity 2s ease" }}>
 
-        {/* Edges — drawn before nodes */}
+        {/* Center text — rendered first so all edges and nodes paint over it */}
+        {sphereCenterText && localSelectedId && (() => {
+          const sphereR = Math.min(size.w, size.h) * SPHERE_FILL_RATIO * zoom;
+          const maxW = sphereR * 1.1;
+          return (
+            <foreignObject
+              x={size.w / 2 - maxW / 2}
+              y={size.h / 2 - sphereR * 0.55}
+              width={maxW}
+              height={sphereR * 1.1}
+              style={{ pointerEvents: "none" }}
+            >
+              <div
+                // @ts-expect-error xmlns required for foreignObject
+                xmlns="http://www.w3.org/1999/xhtml"
+                style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
+              >
+                <p style={{
+                  margin: 0,
+                  fontFamily: "'Lora', Georgia, serif",
+                  fontSize: Math.max(13, Math.min(26, sphereR * 0.085)),
+                  fontWeight: 500,
+                  color: "var(--text-primary)",
+                  lineHeight: 1.5,
+                  textAlign: "center",
+                  opacity: 0.25,
+                  textShadow: "0 1px 12px var(--bg-base), 0 0 24px var(--bg-base)",
+                  padding: "0 8px",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 6,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}>{sphereCenterText}</p>
+              </div>
+            </foreignObject>
+          );
+        })()}
+
+        {/* Edges */}
         {graph.edges.map((edge) => {
           const src = projectedMap.get(edge.source);
           const tgt = projectedMap.get(edge.target);
           if (!src || !tgt) return null;
-
           const avgDepth = (src.depth + tgt.depth) / 2;
 
-          // Great-circle arc via slerp midpoint as quadratic bezier control
           const rotSrc = quatRotate(rotation, [src.sx, src.sy, src.sz]);
           const rotTgt = quatRotate(rotation, [tgt.sx, tgt.sy, tgt.sz]);
           const mid3   = slerp(rotSrc, rotTgt, 0.5);
-          const cx2    = size.w / 2;
-          const cy2    = size.h / 2;
           const sphereR = Math.min(size.w, size.h) * SPHERE_FILL_RATIO * zoom;
-          const mid2   = project(mid3, cx2, cy2, sphereR, FOV_BASE);
+          const mid2   = project(mid3, size.w / 2, size.h / 2, sphereR, FOV_BASE);
 
-          const isRelated = localSelectedId !== null && (
-            edge.source === localSelectedId || edge.target === localSelectedId
-          );
-          // In deep highlight mode, an edge is "related" if either endpoint has a finite distance
+          const isRelated = localSelectedId !== null && (edge.source === localSelectedId || edge.target === localSelectedId);
           const srcDist = distanceMap.get(edge.source) ?? Infinity;
           const tgtDist = distanceMap.get(edge.target) ?? Infinity;
-          const edgeDist = Math.min(srcDist, tgtDist); // distance of the closer endpoint
+          const edgeDist = Math.min(srcDist, tgtDist);
           const isDeepRelated = deepHighlight && localSelectedId !== null && edgeDist < Infinity;
           const isDimmed  = localSelectedId !== null && !isRelated && !isDeepRelated;
           const isHiddenEdge = deepHighlight && localSelectedId !== null && !isRelated && !isDeepRelated;
-
-          // Decay edge opacity by hop distance in deep mode
-          const edgeDepthDecay = isDeepRelated && !isRelated
-            ? Math.max(0.3, Math.pow(0.80, edgeDist))
-            : 1;
-
-          // In deep mode color the edge by the farther endpoint's node color
-          // (the node further from the selected root, i.e. higher distance)
-          const deepEdgeColor = deepHighlight && isDeepRelated && !isRelated
-            ? (srcDist >= tgtDist ? src.color : tgt.color)
-            : null;
+          const edgeDepthDecay = isDeepRelated && !isRelated ? Math.max(0.3, Math.pow(0.80, edgeDist)) : 1;
+          const deepEdgeColor = deepHighlight && isDeepRelated && !isRelated ? (srcDist >= tgtDist ? src.color : tgt.color) : null;
 
           return (
-            <path
-              key={edge.id}
+            <path key={edge.id}
               d={`M ${src.screenX},${src.screenY} Q ${mid2.screenX},${mid2.screenY} ${tgt.screenX},${tgt.screenY}`}
               fill="none"
               stroke={isRelated ? "var(--accent-warm)" : deepEdgeColor ?? "var(--edge-color)"}
@@ -858,136 +879,42 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
           const isDimmed   = localSelectedId !== null && !isSelected && !isNeighbor &&
                              (!deepHighlight || nodeDist === Infinity);
           const isHidden   = deepHighlight && localSelectedId !== null && nodeDist === Infinity;
-
           const degree = degreeMap.get(node.id) ?? 0;
           const degreeScale = lerp(0.6, 2.2, degree / maxDegree);
           const baseR  = (isSelected ? NODE_RADIUS_SELECTED : NODE_RADIUS) * degreeScale;
           const r      = baseR * lerp(DEPTH_MIN_RADIUS, 1.0, node.depth);
           const opacityBase = lerp(DEPTH_MIN_OPACITY, 1.0, node.depth);
-
-          // In deep highlight mode, decay opacity by hop distance
-          // dist 1 → 0.90, dist 2 → 0.72, dist 3 → 0.58, dist 4 → 0.47, …
           const depthDecay = deepHighlight && localSelectedId !== null && !isSelected && nodeDist < Infinity
-            ? Math.max(0.35, Math.pow(0.80, nodeDist - 1))
-            : 1;
+            ? Math.max(0.35, Math.pow(0.80, nodeDist - 1)) : 1;
           const opacity = isHidden ? 0 : isDimmed ? opacityBase * 0.2 : opacityBase * depthDecay;
-
           const showLabel = isHovered || isSelected;
-
           return (
-            <g
-              key={node.id}
-              data-node="true"
-              style={{ cursor: "pointer" }}
+            <g key={node.id} data-node="true" style={{ cursor: "pointer" }}
               onClick={() => setLocalSelectedId(isSelected ? null : node.id)}
               onMouseEnter={() => setHoveredId(node.id)}
               onMouseLeave={() => setHoveredId(null)}
             >
-              {/* Selection ring */}
-              {isSelected && (
-                <circle
-                  cx={node.screenX} cy={node.screenY} r={r + 7}
-                  fill="none"
-                  stroke={node.color}
-                  strokeWidth={1}
-                  opacity={0.28}
-                />
-              )}
-
-              {/* Hover aura */}
-              {isHovered && !isSelected && (
-                <circle
-                  cx={node.screenX} cy={node.screenY} r={r + 4}
-                  fill={node.color}
-                  opacity={0.12}
-                />
-              )}
-
-              {/* Main circle */}
-              <circle
-                cx={node.screenX} cy={node.screenY} r={r}
-                fill={node.color}
-                stroke={
-                  isSelected ? "var(--bg-base)" :
-                  isHovered  ? "rgba(255,255,255,0.9)" :
-                               "rgba(255,255,255,0.4)"
-                }
-                strokeWidth={isSelected ? 2.5 : 1.5}
-                opacity={opacity}
+              {isSelected && <circle cx={node.screenX} cy={node.screenY} r={r + 7} fill="none" stroke={node.color} strokeWidth={1} opacity={0.28} />}
+              {isHovered && !isSelected && <circle cx={node.screenX} cy={node.screenY} r={r + 4} fill={node.color} opacity={0.12} />}
+              <circle cx={node.screenX} cy={node.screenY} r={r} fill={node.color}
+                stroke={isSelected ? "var(--bg-base)" : isHovered ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.4)"}
+                strokeWidth={isSelected ? 2.5 : 1.5} opacity={opacity}
                 filter={isSelected ? "url(#node-glow)" : isHovered ? "url(#node-glow-soft)" : undefined}
                 style={{ transition: "opacity 0.2s" }}
               />
-
-              {/* Label */}
               {showLabel && (
-                <text
-                  x={node.screenX + r + 5}
-                  y={node.screenY + 4}
-                  fontSize={12}
-                  fontFamily="'Geist', sans-serif"
-                  fontWeight={isSelected ? "500" : "400"}
+                <text x={node.screenX + r + 5} y={node.screenY + 4} fontSize={12}
+                  fontFamily="'Geist', sans-serif" fontWeight={isSelected ? "500" : "400"}
                   fill={isSelected ? "var(--text-primary)" : "var(--text-secondary)"}
-                  stroke="var(--bg-base)"
-                  strokeWidth={3}
-                  strokeLinejoin="round"
-                  paintOrder="stroke"
+                  stroke="var(--bg-base)" strokeWidth={3} strokeLinejoin="round" paintOrder="stroke"
                   style={{ pointerEvents: "none" }}
-                >
-                  {node.name}
-                </text>
+                >{node.name}</text>
               )}
             </g>
           );
         })}
 
         </g>{/* end sphere content */}
-
-        {/* Center text overlay — driven by field config */}
-        {sphereCenterText && localSelectedId && (() => {
-          const sphereR = Math.min(size.w, size.h) * SPHERE_FILL_RATIO * zoom;
-          const maxW = sphereR * 1.1;
-          return (
-            <foreignObject
-              x={size.w / 2 - maxW / 2}
-              y={size.h / 2 - sphereR * 0.55}
-              width={maxW}
-              height={sphereR * 1.1}
-              style={{ pointerEvents: "none" }}
-            >
-              <div
-                // @ts-expect-error xmlns required for foreignObject
-                xmlns="http://www.w3.org/1999/xhtml"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                }}
-              >
-                <p style={{
-                  margin: 0,
-                  fontFamily: "'Lora', Georgia, serif",
-                  fontSize: Math.max(13, Math.min(26, sphereR * 0.085)),
-                  fontWeight: 500,
-                  color: "var(--text-primary)",
-                  lineHeight: 1.5,
-                  textAlign: "center",
-                  opacity: 0.88,
-                  textShadow: "0 1px 12px var(--bg-base), 0 0 24px var(--bg-base)",
-                  padding: "0 8px",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 6,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}>
-                  {sphereCenterText}
-                </p>
-              </div>
-            </foreignObject>
-          );
-        })()}
       </svg>
 
       {/* Zoom buttons */}

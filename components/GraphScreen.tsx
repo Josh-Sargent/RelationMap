@@ -42,6 +42,9 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
   // Deep highlight mode — shows full connection web with opacity decay
   const [deepHighlight, setDeepHighlight] = useState(false);
 
+  // Center text visibility toggle
+  const [showCenterText, setShowCenterText] = useState(true);
+
   // Dark mode — persisted in localStorage
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
@@ -146,7 +149,7 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         graph={filteredGraph}
         onSelectNode={handleSelectNode}
         selectedNodeId={selectedDetail?.id ?? null}
-        sphereCenterText={sphereCenterText}
+        sphereCenterText={showCenterText ? sphereCenterText : null}
         shape={shape}
         deepHighlight={deepHighlight}
         panelOpen={panelOpen}
@@ -209,6 +212,39 @@ export function GraphScreen({ initialGraph, lastSyncAt, warnings }: Props) {
         }}
         className="animate-fade-up"
       >
+        {/* Center text toggle */}
+        <button
+          type="button"
+          onClick={() => setShowCenterText((v) => !v)}
+          title={showCenterText ? "Hide center text" : "Show center text"}
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            border: "1px solid var(--border-default)",
+            background: showCenterText ? "var(--bg-overlay)" : "var(--panel-bg)",
+            backdropFilter: "blur(12px)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+            color: showCenterText ? "var(--text-primary)" : "var(--text-muted)",
+            transition: "background 0.15s, color 0.15s, border-color 0.15s",
+            boxShadow: "var(--shadow-sm)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = "var(--bg-overlay)";
+            (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = showCenterText ? "var(--bg-overlay)" : "var(--panel-bg)";
+            (e.currentTarget as HTMLElement).style.color = showCenterText ? "var(--text-primary)" : "var(--text-muted)";
+          }}
+        >
+          ¶
+        </button>
+
         {/* Settings panel */}
         <SettingsPanel
           shape={shape}
