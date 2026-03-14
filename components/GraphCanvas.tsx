@@ -477,6 +477,47 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
   const [showBean, setShowBean]           = useState(true);
   const wasEmptyRef = useRef(true);
 
+  // Center text fade animation state
+  const [displayedCenterText, setDisplayedCenterText] = useState<string | null>(null);
+  const [centerTextAnimOpacity, setCenterTextAnimOpacity] = useState(0);
+  const centerTextFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (centerTextFadeTimer.current) clearTimeout(centerTextFadeTimer.current);
+
+    if (!sphereCenterText) {
+      // No text — fade out immediately
+      setCenterTextAnimOpacity(0);
+      centerTextFadeTimer.current = setTimeout(() => setDisplayedCenterText(null), 500);
+      return;
+    }
+
+    if (!displayedCenterText) {
+      // First text — fade in over 1.5s
+      setDisplayedCenterText(sphereCenterText);
+      setCenterTextAnimOpacity(0);
+      centerTextFadeTimer.current = setTimeout(() => setCenterTextAnimOpacity(centerTextOpacity), 30);
+    } else {
+      // Switching text — fade out old (0.5s), then swap and fade in new (1.5s)
+      setCenterTextAnimOpacity(0);
+      centerTextFadeTimer.current = setTimeout(() => {
+        setDisplayedCenterText(sphereCenterText);
+        centerTextFadeTimer.current = setTimeout(() => setCenterTextAnimOpacity(centerTextOpacity), 30);
+      }, 500);
+    }
+
+    return () => {
+      if (centerTextFadeTimer.current) clearTimeout(centerTextFadeTimer.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sphereCenterText]);
+
+  // Keep displayed opacity in sync when centerTextOpacity setting changes (no animation)
+  useEffect(() => {
+    if (displayedCenterText) setCenterTextAnimOpacity(centerTextOpacity);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [centerTextOpacity]);
+
   // Container size for projection
   const [size, setSize] = useState({ w: 800, h: 600 });
   useEffect(() => {
@@ -799,7 +840,7 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
         <g style={{ opacity: sphereOpacity, transition: "opacity 2s ease" }}>
 
         {/* Center text — rendered first so all edges and nodes paint over it */}
-        {sphereCenterText && localSelectedId && (() => {
+        {displayedCenterText && localSelectedId && (() => {
           const sphereR = Math.min(size.w, size.h) * SPHERE_FILL_RATIO * zoom;
           const maxW = sphereR * 1.1;
           return (
@@ -823,14 +864,15 @@ export function GraphCanvas({ graph, onSelectNode, selectedNodeId, shape = "sphe
                   color: "var(--text-primary)",
                   lineHeight: 1.5,
                   textAlign: "center",
-                  opacity: centerTextOpacity,
+                  opacity: centerTextAnimOpacity,
+                  transition: centerTextAnimOpacity === 0 ? "opacity 0.5s ease" : "opacity 3s ease",
                   textShadow: "0 1px 12px var(--bg-base), 0 0 24px var(--bg-base)",
                   padding: "0 8px",
                   display: "-webkit-box",
                   WebkitLineClamp: 6,
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
-                }}>{sphereCenterText}</p>
+                }}>{displayedCenterText}</p>
               </div>
             </foreignObject>
           );
